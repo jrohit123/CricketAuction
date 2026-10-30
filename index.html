@@ -7,7 +7,7 @@
 :root{--bg:#f6f7f4;--card:#fff;--tx:#14211a;--mu:#5d6b63;--ac:#0b6b3a;--ac2:#010101;--bd:#d9dfd9;--bad:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1713;--card:#18231d;--tx:#eaf1ec;--mu:#9baba1;--bd:#2a3a31;--ac:#35c27a;--ac2:#f0b429;--bad:#ff8a80}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif;padding:12px}
-h1{font-size:20px;margin:0 0 10px}h2{font-size:16px;margin:0 0 8px}
+h1{font-size:20px;margin:0 0 10px}h1 input{font-size:inherit;font-weight:700;padding:5px 8px}h2{font-size:16px;margin:0 0 8px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
 textarea,input{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px;font:inherit}
 textarea{min-height:130px}textarea.csv{min-height:140px;font:12px monospace}
@@ -25,18 +25,27 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .tb{padding:12px 8px;display:flex;flex-direction:column;gap:2px;text-align:center}.tb small{font-weight:400;opacity:.85}
 .tb.lead{outline:3px solid var(--ac2)}
-.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid var(--bd);padding:6px;text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid var(--bd);padding:6px;text-align:left;vertical-align:middle}
+.avatar{position:relative;width:120px;height:120px;border-radius:50%;margin:0 auto 10px;background:var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:32px;font-weight:700;color:var(--mu)}
+.avatar.sm{width:36px;height:36px;margin:0;font-size:13px}
+.avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.branding{display:flex;align-items:center;justify-content:center;gap:10px;margin:20px auto 8px;color:var(--mu);font-size:13px;text-align:center}
+.branding img{display:block;max-width:140px;max-height:48px;object-fit:contain}
 </style></head><body>
-<h1>🏏 GEM Diwali Tournament 2026</h1>
+<h1><input id="tournamentTitle" type="text" aria-label="Tournament name" value="🏏 GEM Diwali Tournament 2026" oninput="renameTournament(this.value)"></h1>
 <div id="app"></div>
+<footer class="branding"><span>Made with love by <b>aitamate Solutions</b></span><a href="https://www.aitamate.com" target="_blank"><img src="Logo-transparent_bg.png" alt="Aitamate Solutions logo" height="48"></a></footer>
 <script>
 const KEY="cricket_auction_v4";
+const defaultTournamentTitle="🏏 GEM Diwali Tournament 2026";
 const defTeams="Mavericks, 100\nTitans, 100\nPanthers, 100\nKnights, 100";
 const defPlayers="(Upload Players CSV or enter manually)\nRohit Sharma, Batsman, 10, 7, Right, None, 36 - 50 years\nSachin Tendulkar, Bowler, 12, 8, Left, Right, 50 years\nVirat Kohli, All-rounder, 15, 9, Right, Left, 18- 35 years";
-let S=null,cfg={teams:defTeams,players:defPlayers,inc:2,max:11},resetArmed=false,resetTimer=null;
-try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);S=o.S;cfg=o.cfg||cfg}}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({S,cfg}))}catch(e){}}
+let S=null,cfg={teams:defTeams,players:defPlayers,inc:2,max:11},tournamentTitle=defaultTournamentTitle,resetArmed=false,resetTimer=null;
+try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);S=o.S;cfg=o.cfg||cfg;if(typeof o.tournamentTitle==="string")tournamentTitle=o.tournamentTitle}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({S,cfg,tournamentTitle}))}catch(e){}}
+function renameTournament(value){tournamentTitle=value;save()}
 const $=s=>document.querySelector(s);
+$("#tournamentTitle").value=tournamentTitle;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const csvCell=v=>{const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
 const roleOf=v=>{v=String(v||"").toLowerCase();if(v.includes("bat"))return"Batsman";if(v.includes("bowl"))return"Bowler";return"All-rounder"};
@@ -44,11 +53,15 @@ const batOf=v=>String(v||"").trim().toUpperCase().startsWith("L")?"Left-Handed":
 const bowlOf=v=>{v=String(v||"").trim().toUpperCase();if(v.startsWith("L"))return"Left-Handed";if(v.startsWith("R"))return"Right-Handed";return"Does not bowl"};
 const skillOf=v=>Math.min(10,Math.max(1,Math.round(+v)||5));
 const ageOf=v=>String(v||"").trim()||"Not specified";
+const initials=n=>String(n).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?";
+// Converts Google Drive share links into direct image links; other URLs are used as-is
+const photoUrl=u=>{u=String(u||"").trim();if(!u)return"";const m=u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]+)/)||(/drive\.google|googleusercontent/.test(u)?u.match(/[?&]id=([\w-]+)/):null);return m?`https://drive.google.com/thumbnail?id=${m[1]}&sz=w600`:u};
+const avatar=(p,sm)=>`<div class="avatar${sm?" sm":""}"><span>${esc(initials(p.name))}</span>${p.photo?`<img src="${esc(p.photo)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:""}</div>`;
 
 function start(){
  cfg.teams=$("#t").value;cfg.players=$("#p").value;cfg.inc=+$("#inc").value||10;cfg.max=+$("#mx").value||11;
  const teams=cfg.teams.split("\n").map(l=>l.split(",").map(x=>x.trim())).filter(a=>a[0]).map(a=>({name:a[0],purse:+a[1]||1000,squad:[]}));
- const players=cfg.players.split("\n").map(l=>l.split(",").map(x=>x.trim())).filter(a=>a[0]).map(a=>({name:a[0],role:roleOf(a[1]),base:+a[2]||10,skill:skillOf(a[3]),bat:batOf(a[4]),bowl:bowlOf(a[5]),age:ageOf(a[6]),status:"pending",team:"",price:0}));
+ const players=cfg.players.split("\n").map(l=>l.split(",").map(x=>x.trim())).filter(a=>a[0]).map(a=>({name:a[0],role:roleOf(a[1]),base:+a[2]||10,skill:skillOf(a[3]),bat:batOf(a[4]),bowl:bowlOf(a[5]),age:ageOf(a[6]),photo:photoUrl(a[7]),status:"pending",team:"",price:0}));
  if(teams.length<2||!players.length){alert("Add at least 2 teams and 1 player.");return}
  S={teams,players,cur:null,bid:0,lead:null,inc:cfg.inc,max:cfg.max,log:[]};save();render();
 }
@@ -68,8 +81,8 @@ function undoBid(){const p=S.players[S.cur];if(S.lead===null)return;
 function recall(){S.players.forEach(p=>{if(p.status==="unsold")p.status="pending"});save();render()}
 
 function csvText(){
- const rows=[["Player","Primary Role","Playing Skill (1-10)","Batting Hand","Bowling Hand","Age Group","Base Price","Status","Team","Sold Price"].join(",")];
- S.players.forEach(p=>rows.push([p.name,p.role,p.skill,p.bat,p.bowl,p.age,p.base,p.status,p.team,p.status==="sold"?p.price:""].map(csvCell).join(",")));
+ const rows=[["Player","Primary Role","Playing Skill (1-10)","Batting Hand","Bowling Hand","Age Group","Base Price","Status","Team","Sold Price","Photo URL"].join(",")];
+ S.players.forEach(p=>rows.push([p.name,p.role,p.skill,p.bat,p.bowl,p.age,p.base,p.status,p.team,p.status==="sold"?p.price:"",p.photo||""].map(csvCell).join(",")));
  rows.push("");rows.push(["Team","Purse Remaining","Squad Size"].join(","));
  S.teams.forEach(t=>rows.push([t.name,t.purse,t.squad.length].map(csvCell).join(",")));
  return rows.join("\n");
@@ -86,18 +99,20 @@ function copyCsv(){const txt=csvText();const box=$("#csvbox");box.style.display=
  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(done).catch(()=>{box.select()})}else{box.select()}}
 
 function parseCsv(text){const rows=[];let row=[],f="",q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c=='"'){if(text[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==","){row.push(f);f=""}else if(c=="\n"||c=="\r"){if(c=="\r"&&text[i+1]=="\n")i++;row.push(f);rows.push(row);row=[];f=""}else f+=c}if(f.length||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()))}
-function uploadPlayers(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{let rows=parseCsv(String(reader.result).replace(/^\uFEFF/,""));if(!rows.length){alert("The file is empty.");return}const head=rows[0].map(h=>h.toLowerCase());const hasHeader=head.some(h=>/name|role|skill|bat|bowl|base|age/.test(h));let idx={name:0,role:1,base:2,skill:3,bat:4,bowl:5,age:6};if(hasHeader){const find=re=>head.findIndex(h=>re.test(h));const m={name:find(/player|name/),role:find(/role/),base:find(/base/),skill:find(/skill/),bat:find(/bat/),bowl:find(/bowl/),age:find(/age/)};Object.keys(m).forEach(k=>{if(m[k]>=0)idx[k]=m[k]});rows=rows.slice(1)}
-const lines=rows.map(r=>{const g=k=>(r[idx[k]]||"").trim().replace(/,/g," ");return [g("name"),g("role"),g("base"),g("skill"),g("bat"),g("bowl"),g("age")].join(", ")}).filter(l=>l.split(",")[0].trim());
+function uploadPlayers(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{let rows=parseCsv(String(reader.result).replace(/^\uFEFF/,""));if(!rows.length){alert("The file is empty.");return}const head=rows[0].map(h=>h.toLowerCase());const hasHeader=head.some(h=>/name|role|skill|bat|bowl|base|\bage\b|photo|image|picture/.test(h));let idx={name:0,role:1,base:2,skill:3,bat:4,bowl:5,age:6,photo:7};if(hasHeader){const find=re=>head.findIndex(h=>re.test(h));const isPhoto=h=>/photo|image|picture|pic|url|link/.test(h);const m={name:head.findIndex(h=>/player|name/.test(h)&&!isPhoto(h)),role:find(/role/),base:find(/base/),skill:find(/skill/),bat:find(/bat/),bowl:find(/bowl/),age:find(/\bage\b/),photo:head.findIndex(isPhoto)};Object.keys(m).forEach(k=>{if(m[k]>=0)idx[k]=m[k]});rows=rows.slice(1)}
+const lines=rows.map(r=>{const g=k=>(r[idx[k]]||"").trim().replace(/,/g," ");return [g("name"),g("role"),g("base"),g("skill"),g("bat"),g("bowl"),g("age"),g("photo")].join(", ")}).filter(l=>l.split(",")[0].trim());
 if(!lines.length){alert("No player rows found.");return}
 $("#p").value=lines.join("\n");alert(lines.length+" players loaded. Review them, then click Start auction.")}catch(e){alert("Could not read this CSV.")}};reader.readAsText(file);input.value=""}
 
 function render(){
  const A=$("#app");
  if(!S){A.innerHTML=`<div class="card"><h2>Setup</h2>
- <label>Teams (name, purse in ₹ lakhs) – one per line</label><textarea id="t" placeholder="${esc(cfg.teams)}"></textarea>
- <label>Players (name, primary role, base price, playing skill 1–10, batting hand Right/Left, bowling hand Right/Left/None, age group) – one per line</label><div style="margin:4px 0 8px"><input type="file" accept=".csv,text/csv" onchange="uploadPlayers(this)"><p class="hi" style="margin:4px 0 0">Upload a CSV with columns - <b>Name, Role, Base, Skill, Batting, Bowling, Age Group</b> (headers optional). Loaded players appear below for review.</p></div><textarea id="p" placeholder="${esc(cfg.players)}"></textarea>
- <div class="row"><div><label>Bid increment</label><input id="inc" type="number" value="${cfg.inc}"></div><div><label>Max squad size</label><input id="mx" type="number" value="${cfg.max}"></div></div>
- <p class="hi">Primary role: Batsman, Bowler or All-rounder. Amounts are in the same unit (e.g. ₹ thousand).</p><button onclick="start()">Start auction</button></div>`;return}
+ <label><b>Teams (name, purse in ₹ lakhs) – one per line</b></label>
+ <textarea id="t" placeholder="${esc(cfg.teams)}"></textarea>
+ <br><br>
+ <label><b>Players (name, primary role, base price, playing skill 1–10, batting hand Right/Left, bowling hand Right/Left/None, age group, photo URL) – one per line</b></label><div style="margin:4px 0 8px"><input type="file" accept=".csv,text/csv" onchange="uploadPlayers(this)"><p class="hi" style="margin:4px 0 0">Upload a CSV with columns - <b>Name, Role, Base, Skill, Batting, Bowling, Age Group, Photo URL</b> (headers optional). Loaded players appear below for review. Google Drive share links work; set the file to "Anyone with the link".</p></div><textarea id="p" placeholder="${esc(cfg.players)}"></textarea>
+ <br><br><div class="row"><div><label><b>Bid increment</b></label><input id="inc" type="number" value="${cfg.inc}"></div><div><label><b>Max squad size</b></label><input id="mx" type="number" value="${cfg.max}"></div></div>
+ <p class="hi"><i>Primary role: Batsman, Bowler or All-rounder.<br>Amounts are in the same unit (e.g. ₹ lakhs)</i>.</p><button onclick="start()">Start auction</button></div>`;return}
  const pend=S.players.filter(p=>p.status==="pending").length,uns=S.players.filter(p=>p.status==="unsold").length,sd=S.players.filter(p=>p.status==="sold").length;
  let h=`<div class="card"><div class="row hi"><span>Pending: ${pend}</span><span>Sold: ${sd}</span><span>Unsold: ${uns}</span></div></div>`;
  if(S.cur===null){
@@ -105,7 +120,7 @@ function render(){
   `<h2>Auction round complete</h2>`+(uns?`<p><button onclick="recall()">Re-auction ${uns} unsold</button></p>`:"")+`<p class="row" style="justify-content:center"><button onclick="downloadCsv()">⬇ Download CSV</button><button class="sec" onclick="copyCsv()">Copy CSV</button></p>`)+`<textarea id="csvbox" class="csv" style="display:none" readonly></textarea></div>`;
  }else{
   const p=S.players[S.cur];
-  h+=`<div class="card stage"><div class="pname">${esc(p.name)}</div><div class="role"><b>Role</b>: ${esc(p.role)} · <b>Age</b>: ${esc(p.age)} · <b>Base</b>: ₹${p.base}</div>
+  h+=`<div class="card stage">${avatar(p,false)}<div class="pname">${esc(p.name)}</div><div class="role"><b>Role</b>: ${esc(p.role)} · <b>Age</b>: ${esc(p.age)} · <b>Base</b>: ₹${p.base}</div>
   <div class="facts">
    <div class="gr"><small>Playing skill</small><b class="skill">${p.skill}/10</b></div>
    <div class="gr"><small>Batting</small><b>${p.bat}</b></div>
@@ -117,8 +132,8 @@ function render(){
  }
  h+=`<div class="card"><h2>Squads</h2><div class="scroll"><table><tr><th>Team</th><th>Purse</th><th>Players (role · age · skill · bat/bowl · price)</th></tr>`+
  S.teams.map(t=>`<tr><td><b>${esc(t.name)}</b></td><td>${t.purse}</td><td>${t.squad.map(x=>{const pl=S.players.find(q=>q.name===x.name)||{};return esc(x.name)+" ("+esc(pl.role||"")+" · "+esc(pl.age||"")+" · "+(pl.skill||"-")+" · "+esc(pl.bat||"")+" / "+esc(pl.bowl||"")+" · "+x.price+")"}).join("<br>")||"–"}</td></tr>`).join("")+`</table></div></div>`;
- h+=`<div class="card"><h2>Player pool</h2><div class="scroll"><table><tr><th>Player</th><th>Role</th><th>Age Group</th><th>Skill</th><th>Batting</th><th>Bowling</th><th>Status</th></tr>`+
- S.players.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.role)}</td><td>${esc(p.age)}</td><td>${p.skill}/10</td><td>${p.bat}</td><td>${p.bowl}</td><td>${p.status==="sold"?esc(p.team)+" ("+p.price+")":p.status}</td></tr>`).join("")+`</table></div></div>`;
+ h+=`<div class="card"><h2>Player pool</h2><div class="scroll"><table><tr><th></th><th>Player</th><th>Role</th><th>Age Group</th><th>Skill</th><th>Batting</th><th>Bowling</th><th>Status</th></tr>`+
+ S.players.map(p=>`<tr><td>${avatar(p,true)}</td><td>${esc(p.name)}</td><td>${esc(p.role)}</td><td>${esc(p.age)}</td><td>${p.skill}/10</td><td>${p.bat}</td><td>${p.bowl}</td><td>${p.status==="sold"?esc(p.team)+" ("+p.price+")":p.status}</td></tr>`).join("")+`</table></div></div>`;
  h+=`<div class="row"><button class="sec" onclick="downloadCsv()">⬇ Export CSV</button><button class="sec" onclick="reset()">${resetArmed?"Tap again to confirm reset":"Reset auction"}</button></div>
  <textarea id="csvbox" class="csv" style="display:none;margin-top:10px" readonly></textarea>`;
  A.innerHTML=h;
